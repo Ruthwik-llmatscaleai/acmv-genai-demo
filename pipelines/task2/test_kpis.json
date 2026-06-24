@@ -1,0 +1,69 @@
+{
+  "task": "task2",
+  "dataset_info": {
+    "rows": 8064,
+    "rows_ahu_on": 3403,
+    "columns": 15,
+    "time_range": "2025-09-01 to 2025-10-14",
+    "interval_minutes": 5.0
+  },
+  "level1_raw": {
+    "avg_power_before_kW": 7.023,
+    "avg_power_after_kW": 3.456,
+    "peak_power_before_kW": 9.0,
+    "peak_power_after_kW": 4.0,
+    "total_energy_before_kWh": 1234.5,
+    "total_energy_after_kWh": 567.8,
+    "avg_cooling_load_RT": 26.35,
+    "operating_hours_before": 168.0,
+    "operating_hours_after": 168.0,
+    "interval_minutes": 5.0
+  },
+  "level2_derived": {
+    "saving_pct": 50.9,
+    "saving_kWh": 666.7,
+    "airside_eff_before_kW_per_RT": 0.2667,
+    "airside_eff_after_kW_per_RT": 0.1312,
+    "target_airside_kW_per_RT": 0.14,
+    "target_total_kW_per_RT": 0.74,
+    "plantroom_assumed_kW_per_RT": 0.60,
+    "total_system_eff_after_kW_per_RT": 0.7312
+  },
+  "level3_verdicts": {
+    "meets_sle_airside": true,
+    "meets_platinum_total": true,
+    "comfort_ok": true,
+    "avg_return_temp_C": 23.5,
+    "avg_return_rh_pct": 62.0,
+    "saving_statistically_significant": true,
+    "p_value": 0.000123,
+    "t_statistic": 45.67
+  },
+  "level4_financial": {
+    "annual_saving_kWh": 15664,
+    "annual_saving_sgd": 3916,
+    "per_ahu_annual_sgd": 3916,
+    "building_20_floors_2_ahus_annual_sgd": 156640,
+    "ten_year_sgd": 1566400,
+    "tariff_sgd_per_kWh": 0.25,
+    "assumed_operating_hours_per_day": 12
+  },
+  "series": {
+    "power_before_hourly": {
+      "timestamps": ["2025-09-01 08:00", "2025-09-01 09:00"],
+      "values": [7.02, 7.15]
+    },
+    "power_after_hourly": {
+      "timestamps": ["2025-09-15 08:00", "2025-09-15 09:00"],
+      "values": [3.45, 3.52]
+    },
+    "efficiency_before_daily": {
+      "timestamps": ["2025-09-01", "2025-09-02"],
+      "values": [0.2667, 0.2655]
+    },
+    "efficiency_after_daily": {
+      "timestamps": ["2025-09-15", "2025-09-16"],
+      "values": [0.1312, 0.1308]
+    }
+  }
+}

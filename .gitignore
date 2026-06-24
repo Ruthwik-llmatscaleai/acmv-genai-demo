@@ -63,3 +63,11 @@ next-env.d.ts
 # runtime logs
 dev.log
 *.log
+
+# Pipeline outputs (generated, not source)
+__pycache__/
+*.pyc
+pipelines/*/kpis.json
+pipelines/*/cleaned_data.csv
+pipelines/*/dashboard.html
+pipelines/*/*.pptx
