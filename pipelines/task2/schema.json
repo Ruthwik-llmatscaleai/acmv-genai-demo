@@ -1,0 +1,80 @@
+{
+  "$comment": "LLM fills this mapping. Template executes fixed logic using it.",
+  "task": "task2",
+  "file_info": {
+    "sheet_name": null,
+    "data_start_row": 0,
+    "delimiter": ","
+  },
+  "columns": {
+    "power": {
+      "column": null,
+      "unit": "kW",
+      "required": true,
+      "description": "AHU fan/motor power consumption"
+    },
+    "load": {
+      "column": null,
+      "unit": "RT",
+      "required": false,
+      "description": "Cooling load in refrigeration tons"
+    },
+    "timestamp": {
+      "column": null,
+      "format": null,
+      "required": false,
+      "description": "Timestamp or datetime column"
+    },
+    "return_temp": {
+      "column": null,
+      "unit": "C",
+      "required": false,
+      "description": "Return air temperature"
+    },
+    "return_rh": {
+      "column": null,
+      "unit": "%",
+      "required": false,
+      "description": "Return air relative humidity"
+    },
+    "airflow": {
+      "column": null,
+      "unit": "CMH",
+      "required": false,
+      "description": "Supply airflow"
+    },
+    "fan_speed": {
+      "column": null,
+      "unit": "%",
+      "required": false,
+      "description": "Fan speed percentage"
+    },
+    "status": {
+      "column": null,
+      "required": false,
+      "description": "AHU on/off status (1=on, 0=off)"
+    }
+  },
+  "period_split": {
+    "method": null,
+    "column": null,
+    "before_value": null,
+    "after_value": null,
+    "before_date_start": null,
+    "before_date_end": null,
+    "after_date_start": null,
+    "after_date_end": null,
+    "notes": null
+  },
+  "filters": {
+    "multiple_ahus": false,
+    "ahu_filter_column": null,
+    "ahu_filter_value": null,
+    "exclude_rows_where": null
+  },
+  "unit_conversions": {
+    "power_multiply_by": 1.0,
+    "load_multiply_by": 1.0,
+    "temp_offset": 0.0
+  }
+}
