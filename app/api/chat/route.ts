@@ -6,7 +6,8 @@ import { loadActiveMcpToolsWithDescriptions } from '@/lib/mcp-client';
 import { requireAuth } from '@/lib/auth-middleware';
 import { getAnthropicFilesClient } from '@/lib/anthropic-files';
 import { toFile } from '@anthropic-ai/sdk';
-import { getLatestPipeline, type TaskId } from '@/lib/s3-pipelines';
+import { loadPipelineFiles, type TaskId } from '@/lib/pipeline-orchestrator';
+import { getPipelineResult, storePipelineResult } from '@/lib/storage';
 import { buildSystemPromptWithTools } from '@/lib/system-prompts';
 import { fitMessagesToContextWindow } from '@/lib/context-window';
 import { validate, ChatRequestSchema, formatValidationErrors } from '@/lib/validation';
@@ -154,31 +155,63 @@ export async function POST(req: NextRequest) {
     // S3 (deterministic preprocess + KPIs) so the model runs it instead of
     // re-deriving the analysis, and add a text hint naming the files + instruction.
     const containerFileIds: string[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const detected = attachments && attachments.length > 0 ? attachments.find((a: any) => a.taskType) : undefined;
     if (attachments && attachments.length > 0) {
       containerFileIds.push(...attachments.map((a) => a.fileId));
 
       // Attach the predefined pipeline for the detected task (if any).
       let pipelineNote = '';
-      const detected = attachments.find((a) => a.taskType);
       if (detected?.taskType) {
         try {
-          const pipeline = await getLatestPipeline(detected.taskType as TaskId);
-          if (pipeline) {
-            const filesClient = getAnthropicFilesClient();
-            const uploadable = await toFile(Buffer.from(pipeline.code, 'utf8'), pipeline.filename, { type: 'text/x-python' });
-            const up = await filesClient.beta.files.upload(
-              { file: uploadable },
+          // Check if we already have results for this conversation
+          const existingResult = conversationId
+            ? await getPipelineResult(conversationId)
+            : null;
+
+          const filesClient = getAnthropicFilesClient();
+
+          if (existingResult) {
+            // Inject kpis.json directly — no need to re-run pipeline
+            const kpisUploadable = await toFile(
+              Buffer.from(JSON.stringify(existingResult.kpis, null, 2), 'utf8'),
+              'kpis.json',
+              { type: 'application/json' }
+            );
+            const kpisUp = await filesClient.beta.files.upload(
+              { file: kpisUploadable },
               { headers: { 'anthropic-beta': 'files-api-2025-04-14' } }
             );
-            containerFileIds.push(up.id);
-            const dataName = (attachments.find((a) => a.taskType) || attachments[0]).filename;
-            pipelineNote =
-              `\n\nA VALIDATED pipeline "${pipeline.filename}" is also in the working directory for this use case (${detected.taskType}). ` +
-              `Run it on the data with code execution (e.g. \`python ${pipeline.filename} "${dataName}"\`). It writes kpis.json and cleaned_mpc_bms_data.csv. ` +
-              `Read kpis.json and use those KPIs DIRECTLY for the dashboard and deliverables — do NOT re-derive the analysis by hand. ` +
-              `If it errors because the data structure differs, adapt the script minimally, re-run to confirm valid KPIs, briefly note what you changed, and continue. ` +
-              `Spend your effort on the interactive dashboard and the final presentation, not on recomputing the numbers.`;
-            console.log(`[Chat] attached pipeline ${pipeline.filename} (${detected.taskType}) -> ${up.id}`);
+            containerFileIds.push(kpisUp.id);
+            pipelineNote = `\n\nPrevious analysis results (kpis.json) are in the working directory. Answer from these results directly. Only re-run the pipeline if the user uploads NEW data.`;
+            console.log(`[Chat] injected cached kpis.json for ${conversationId}`);
+          } else {
+            // First time — inject full pipeline files
+            const pipelineFiles = await loadPipelineFiles(detected.taskType as TaskId);
+            if (pipelineFiles) {
+              for (const [, file] of Object.entries(pipelineFiles) as [string, { filename: string; code: string }][]) {
+                const uploadable = await toFile(
+                  Buffer.from(file.code, 'utf8'),
+                  file.filename,
+                  { type: file.filename.endsWith('.py') ? 'text/x-python' : (file.filename.endsWith('.html') ? 'text/html' : 'application/json') }
+                );
+                const up = await filesClient.beta.files.upload(
+                  { file: uploadable },
+                  { headers: { 'anthropic-beta': 'files-api-2025-04-14' } }
+                );
+                containerFileIds.push(up.id);
+              }
+
+              const dataName = detected.filename;
+              pipelineNote =
+                `\n\nPipeline files are in the working directory for ${detected.taskType}:` +
+                `\n- template_${detected.taskType}.py (fixed math — run this on the data)` +
+                `\n- schema.json (template — inspect data columns and fill this as schema_filled.json)` +
+                `\n- view_schema.json (template — fill this as view_filled.json after getting kpis)` +
+                `\n- renderer.html + render_view.py (rendering — run after view_filled.json is ready)` +
+                `\n\nFollow the Pipeline Execution Protocol in your instructions. Data file: "${dataName}"`;
+              console.log(`[Chat] attached ${Object.keys(pipelineFiles).length} pipeline files for ${detected.taskType}`);
+            }
           }
         } catch (e) {
           console.error('[Chat] pipeline attach failed:', (e as Error).message);
@@ -511,6 +544,22 @@ export async function POST(req: NextRequest) {
               model: modelId,
             },
           });
+
+          // Store pipeline result if the model produced kpis.json
+          if (detected?.taskType) {
+            try {
+              const kpisMatch = text.match(/```json\n(\{[\s\S]*?"task"[\s\S]*?\})\n```/);
+              if (kpisMatch) {
+                const kpis = JSON.parse(kpisMatch[1]);
+                if (kpis.task || kpis.level1_raw || kpis.level2_derived) {
+                  await storePipelineResult(conversationId, detected.taskType, kpis);
+                  console.log('[Chat] Stored pipeline result for', conversationId);
+                }
+              }
+            } catch {
+              // Best effort — don't fail the response
+            }
+          }
 
         } catch (error) {
           console.error('[Chat] Error persisting message:', error);

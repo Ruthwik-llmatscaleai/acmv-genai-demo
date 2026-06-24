@@ -1,5 +1,5 @@
 import * as XLSX from 'xlsx';
-import type { TaskId } from '@/lib/s3-pipelines';
+import type { TaskId } from '@/lib/pipeline-orchestrator';
 
 // Minimal column signatures used to route an uploaded dataset to a task pipeline.
 // Only confident matches return a task; everything else returns null so the LLM
