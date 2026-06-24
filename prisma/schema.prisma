@@ -63,6 +63,7 @@ model Conversation {
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages  Message[]
   artifacts Artifact[]
+  pipelineResult PipelineResult?
 
   @@index([userId])
   @@index([userId, updatedAt(sort: Desc)])
@@ -143,4 +144,22 @@ model PasswordResetToken {
   @@index([token])
   @@index([email])
   @@map("password_reset_tokens")
+}
+
+// Pipeline results — stored kpis.json for follow-up queries
+model PipelineResult {
+  id             String   @id @default(uuid())
+  conversationId String   @unique @map("conversation_id")
+  taskType       String   @map("task_type")
+  fileHash       String?  @map("file_hash")
+  kpis           Json
+  schema         Json?
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([fileHash])
+  @@map("pipeline_results")
 }

@@ -9,6 +9,7 @@ import type {
   Artifact,
   McpConnection,
   Session,
+  PipelineResult,
 } from './generated/prisma/client';
 
 // Re-export types for use in other modules
@@ -19,6 +20,7 @@ export type {
   Artifact,
   McpConnection,
   Session,
+  PipelineResult,
 };
 
 // ============================================
@@ -470,4 +472,39 @@ export function toConversationResponse(conversation: Conversation & { messages?:
     updatedAt: conversation.updatedAt.toISOString(),
     lastMessage: lastMessage?.content.slice(0, 100) || null,
   };
+}
+
+// ============================================
+// Pipeline Result Operations
+// ============================================
+
+/**
+ * Store pipeline result for a conversation.
+ */
+export async function storePipelineResult(
+  conversationId: string,
+  taskType: string,
+  kpis: Record<string, unknown>,
+  schema?: Record<string, unknown>,
+  fileHash?: string
+) {
+  return prisma.pipelineResult.upsert({
+    where: { conversationId },
+    create: { conversationId, taskType, kpis, schema, fileHash },
+    update: { kpis, schema, taskType, fileHash },
+  });
+}
+
+/**
+ * Get stored pipeline result for a conversation (for follow-up queries).
+ */
+export async function getPipelineResult(conversationId: string) {
+  return prisma.pipelineResult.findUnique({ where: { conversationId } });
+}
+
+/**
+ * Check if we've seen this exact file before (cache hit by hash).
+ */
+export async function getPipelineResultByFileHash(fileHash: string) {
+  return prisma.pipelineResult.findFirst({ where: { fileHash } });
 }
