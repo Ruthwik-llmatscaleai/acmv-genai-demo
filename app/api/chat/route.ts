@@ -241,8 +241,16 @@ export async function POST(req: NextRequest) {
     console.log(`[Chat] Available tools (${toolNames.length}):`, toolNames);
 
     // Build dynamic system prompt with available tools
-    const systemPrompt = buildSystemPromptWithTools(toolNames, mcpToolDescriptions);
+    let systemPrompt = buildSystemPromptWithTools(toolNames, mcpToolDescriptions);
     console.log(`[Chat] System prompt includes ${mcpToolDescriptions.length} MCP tool descriptions`);
+
+    // Inject stored kpis.json into system prompt for follow-up queries
+    if (conversationId) {
+      const storedResult = await getPipelineResult(conversationId);
+      if (storedResult) {
+        systemPrompt += `\n\n## Analysis Results (source of truth — cite numbers from here)\n\`\`\`json\n${JSON.stringify(storedResult.kpis, null, 2)}\n\`\`\`\n\nFor follow-up questions, answer directly from these pre-computed results. Do NOT re-run the pipeline unless the user uploads a new file.`;
+      }
+    }
 
     // Fit messages within the context window (trim tool results + drop old groups)
     const fittedMessages = fitMessagesToContextWindow(messages, systemPrompt);
