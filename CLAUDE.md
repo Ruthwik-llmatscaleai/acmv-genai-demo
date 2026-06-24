@@ -82,6 +82,7 @@ llmatscale_ai/
 | **Message** | Chat messages | role (user/assistant/tool), content, parts, metadata |
 | **Artifact** | Generated visualizations | type (html/code), title, content |
 | **McpConnection** | MCP server connections | serverUrl, authType, availableTools |
+| **PipelineResult** | Stored kpis.json per conversation | conversationId, taskType, kpis (JSON), fileHash |
 | **PasswordResetToken** | Password recovery | token, expiresAt |
 
 ## Key Features
@@ -140,6 +141,8 @@ npm run db:migrate   # Run migrations
 npm run db:push      # Push schema directly
 npm run db:studio    # Prisma Studio GUI
 npm run db:reset     # Reset database (WARNING: deletes data)
+npm test             # Run unit tests (vitest)
+npm run test:watch   # Run tests in watch mode
 ```
 
 ## Claude Models
@@ -163,6 +166,25 @@ npm run db:reset     # Reset database (WARNING: deletes data)
 4. Messages saved to PostgreSQL → Artifacts extracted and stored
 5. Frontend displays streaming response with markdown/code highlighting
 
+### Pipeline Architecture (Task 2+)
+
+For HVAC analysis tasks, the system uses a deterministic pipeline approach:
+
+1. **Routing:** LLM identifies the task from data columns (system prompt signatures)
+2. **Schema:** LLM fills `schema.json` (column mapping for the uploaded file)
+3. **Computation:** `template_task2.py` runs fixed math → produces `kpis.json`
+4. **View:** LLM fills `view.json` (what to show, what narrative to write)
+5. **Rendering:** `render_view.py` produces HTML dashboard + PPTX from `view.json`
+6. **Persistence:** `kpis.json` stored in DB for follow-up queries (no re-run needed)
+
+Key principles:
+- LLM decides WHAT (content), templates decide HOW (layout)
+- Math formulas are FIXED in Python — LLM cannot hallucinate calculations
+- Missing data reported as null with explicit notes
+- Follow-ups read from stored kpis.json — fixed context, never grows
+
+Pipeline files: `pipelines/<task>/`
+
 ### Security
 - All API routes require Bearer token authentication
 - Passwords hashed with scrypt (salt + derived key)
@@ -184,6 +206,8 @@ npm run db:reset     # Reset database (WARNING: deletes data)
 | `lib/anthropic.ts` | Anthropic SDK client |
 | `lib/anthropic-files.ts` | Anthropic Files API client |
 | `lib/system-prompts.ts` | System prompts |
+| `lib/pipeline-orchestrator.ts` | Load pipeline files for container |
+| `lib/schema-validator.ts` | Validate LLM-filled schema/view JSON |
 | `prisma/schema.prisma` | Database schema |
 | `app/globals.css` | Theme variables & styles |
 
@@ -193,6 +217,8 @@ npm run db:reset     # Reset database (WARNING: deletes data)
 | `CLAUDE.md` | Project overview (this file) |
 | `components/CLAUDE.md` | Frontend documentation |
 | `app/api/CLAUDE.md` | Backend API documentation |
+| `pipelines/CLAUDE.md` | Pipeline architecture & coding standards |
+| `pipelines/task2/CLAUDE.md` | Task 2 files, BCA targets, testing |
 
 ## Contributing
 
