@@ -300,6 +300,9 @@ export async function POST(req: NextRequest) {
       ],
     };
 
+    // Enable prompt caching for 90% input token savings on repeat turns
+    anthropicOptions.cacheControl = { type: 'ephemeral' };
+
     streamConfig.providerOptions = { anthropic: anthropicOptions };
 
     // Pass uploaded file_ids (data + predefined pipeline) to the provider fetch
