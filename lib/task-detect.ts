@@ -6,7 +6,8 @@ import type { TaskId } from '@/lib/s3-pipelines';
 // detects/handles it as before.
 const SIGNATURES: { task: TaskId; required: string[] }[] = [
   { task: 'task1', required: ['CHWS_Temperature', 'Cooling_Power', 'Valve_Feedback'] },
-  // task2 / task3 signatures are added when their datasets/contracts are defined.
+  { task: 'task2', required: ['ahu_power_kW', 'cooling_load_RT', 'airside_efficiency_kW_per_RT'] },
+  // task3 signature is added when its dataset/contract is defined.
 ];
 
 function headerFromXlsx(buf: Buffer): string[] {
@@ -37,9 +38,18 @@ export function detectTask(buf: Buffer, filename: string): TaskId | null {
   else if (lower.endsWith('.csv') || lower.endsWith('.tsv') || lower.endsWith('.txt')) header = headerFromCsv(buf);
   if (header.length === 0) return null;
 
-  const set = new Set(header);
+  // Exact match first (preserves existing behavior for task1)
+  const exactSet = new Set(header);
   for (const sig of SIGNATURES) {
-    if (sig.required.every((c) => set.has(c))) return sig.task;
+    if (sig.required.every((c) => exactSet.has(c))) return sig.task;
   }
+
+  // Case-insensitive + underscore-normalized fallback for real-world variants
+  const normalizedSet = new Set(header.map((h) => h.toLowerCase().replace(/[\s-]+/g, '_')));
+  for (const sig of SIGNATURES) {
+    const normalizedRequired = sig.required.map((c) => c.toLowerCase().replace(/[\s-]+/g, '_'));
+    if (normalizedRequired.every((c) => normalizedSet.has(c))) return sig.task;
+  }
+
   return null;
 }
