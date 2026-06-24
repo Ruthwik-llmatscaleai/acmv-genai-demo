@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Task 2 — Airside Optimization Dashboard</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f8fafc; color: #1e293b; padding: 24px; }
+  .header { text-align: center; margin-bottom: 24px; }
+  .header h1 { font-size: 22px; font-weight: 700; color: #0f172a; }
+  .header p { font-size: 13px; color: #64748b; margin-top: 4px; }
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+  .kpi-card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .kpi-card .label { font-size: 12px; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card .value { font-size: 28px; font-weight: 700; margin-top: 4px; }
+  .kpi-card .sub { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+  .pass { color: #16a34a; }
+  .fail { color: #dc2626; }
+  .neutral { color: #0f172a; }
+  .section { background: white; border-radius: 12px; padding: 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .section h2 { font-size: 16px; font-weight: 600; margin-bottom: 16px; color: #0f172a; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px; background: #f1f5f9; font-weight: 600; }
+  td { padding: 8px 12px; border-top: 1px solid #e2e8f0; }
+  .chart-container { width: 100%; height: 200px; position: relative; }
+  .bar-group { display: flex; align-items: end; gap: 8px; height: 160px; padding-top: 20px; }
+  .bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; }
+  .bar { width: 60px; border-radius: 6px 6px 0 0; transition: height 0.3s; }
+  .bar-before { background: #ef4444; }
+  .bar-after { background: #22c55e; }
+  .bar-label { font-size: 11px; color: #64748b; margin-top: 6px; }
+  .bar-value { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .legend { display: flex; gap: 16px; margin-top: 12px; justify-content: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .verdict-box { padding: 16px; border-radius: 8px; margin-top: 12px; }
+  .verdict-pass { background: #f0fdf4; border: 1px solid #bbf7d0; }
+  .verdict-fail { background: #fef2f2; border: 1px solid #fecaca; }
+  .verdict-partial { background: #fffbeb; border: 1px solid #fde68a; }
+  .missing-note { font-size: 12px; color: #92400e; background: #fffbeb; padding: 8px 12px; border-radius: 6px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>AHU Airside Optimization — BCA SLE Analysis</h1>
+  <p id="subtitle">Dataset: {{rows}} rows | {{time_range}} | Interval: {{interval}}min</p>
+</div>
+
+<!-- KPI Cards -->
+<div class="kpi-grid">
+  <div class="kpi-card">
+    <div class="label">Energy Saving</div>
+    <div class="value pass" id="saving-pct">—</div>
+    <div class="sub" id="saving-detail">— kWh saved</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Airside Efficiency (After)</div>
+    <div class="value" id="efficiency-value">—</div>
+    <div class="sub">Target: ≤0.14 kW/RT</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Meets BCA SLE</div>
+    <div class="value" id="sle-verdict">—</div>
+    <div class="sub" id="sle-detail">Total system target ≤0.74 kW/RT</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Comfort</div>
+    <div class="value" id="comfort-verdict">—</div>
+    <div class="sub" id="comfort-detail">Target: 22–24.5°C, RH ≤75%</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Annual Saving (per AHU)</div>
+    <div class="value neutral" id="annual-saving">—</div>
+    <div class="sub">At S$0.25/kWh tariff</div>
+  </div>
+  <div class="kpi-card">
+    <div class="label">Statistical Significance</div>
+    <div class="value" id="sig-verdict">—</div>
+    <div class="sub" id="sig-detail">Welch's t-test</div>
+  </div>
+</div>
+
+<!-- Power Comparison Chart -->
+<div class="section">
+  <h2>AHU Power Comparison</h2>
+  <div class="bar-group" id="power-chart">
+    <div class="bar-wrapper">
+      <div class="bar-value" id="bar-avg-before">—</div>
+      <div class="bar bar-before" id="bar-avg-before-el" style="height:80%"></div>
+      <div class="bar-label">Avg Power<br>(Before)</div>
+    </div>
+    <div class="bar-wrapper">
+      <div class="bar-value" id="bar-avg-after">—</div>
+      <div class="bar bar-after" id="bar-avg-after-el" style="height:40%"></div>
+      <div class="bar-label">Avg Power<br>(After)</div>
+    </div>
+    <div class="bar-wrapper">
+      <div class="bar-value" id="bar-peak-before">—</div>
+      <div class="bar bar-before" id="bar-peak-before-el" style="height:95%"></div>
+      <div class="bar-label">Peak Power<br>(Before)</div>
+    </div>
+    <div class="bar-wrapper">
+      <div class="bar-value" id="bar-peak-after">—</div>
+      <div class="bar bar-after" id="bar-peak-after-el" style="height:45%"></div>
+      <div class="bar-label">Peak Power<br>(After)</div>
+    </div>
+  </div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Before Optimization</div>
+    <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div> After Optimization</div>
+  </div>
+</div>
+
+<!-- Detailed Metrics Table -->
+<div class="section">
+  <h2>Detailed Metrics</h2>
+  <table>
+    <thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Target</th></tr></thead>
+    <tbody id="metrics-table">
+    </tbody>
+  </table>
+</div>
+
+<!-- Verdict -->
+<div class="section">
+  <h2>Conclusion</h2>
+  <div id="verdict-box" class="verdict-box verdict-partial">
+    <p id="verdict-text">Loading...</p>
+  </div>
+  <div id="missing-notes"></div>
+</div>
+
+<script>
+// DATA INJECTION POINT — kpis.json values go here
+const KPIS = __KPIS_JSON__;
+
+// Populate dashboard from kpis.json
+function render() {
+  const k = KPIS.kpis;
+  if (!k) { document.body.innerHTML = '<p>Error: ' + (KPIS.error || 'No KPIs') + '</p>'; return; }
+
+  // Subtitle
+  document.getElementById('subtitle').textContent =
+    `${KPIS.kpis._rows_before + KPIS.kpis._rows_after} data points | Confidence: ${k._confidence}`;
+
+  // KPI cards
+  document.getElementById('saving-pct').textContent = k.saving_pct + '%';
+  document.getElementById('saving-detail').textContent = k.saving_kWh + ' kWh saved over measurement period';
+
+  if (k.airside_eff_after_kW_per_RT !== null) {
+    const el = document.getElementById('efficiency-value');
+    el.textContent = k.airside_eff_after_kW_per_RT + ' kW/RT';
+    el.className = 'value ' + (k.airside_eff_after_kW_per_RT <= 0.14 ? 'pass' : 'fail');
+  } else {
+    document.getElementById('efficiency-value').textContent = 'N/A';
+    document.getElementById('efficiency-value').className = 'value neutral';
+  }
+
+  if (k.meets_sle_airside !== null) {
+    const el = document.getElementById('sle-verdict');
+    el.textContent = k.meets_sle_airside ? 'YES ✓' : 'NO ✗';
+    el.className = 'value ' + (k.meets_sle_airside ? 'pass' : 'fail');
+    document.getElementById('sle-detail').textContent =
+      `Total: ${k.total_system_eff_after_kW_per_RT} kW/RT (target ≤0.74)`;
+  } else {
+    document.getElementById('sle-verdict').textContent = 'INSUFFICIENT DATA';
+    document.getElementById('sle-verdict').className = 'value neutral';
+  }
+
+  if (k.comfort_ok !== null) {
+    const el = document.getElementById('comfort-verdict');
+    el.textContent = k.comfort_ok ? 'OK ✓' : 'ISSUE ✗';
+    el.className = 'value ' + (k.comfort_ok ? 'pass' : 'fail');
+    let detail = '';
+    if (k.avg_return_temp_C !== null) detail += k.avg_return_temp_C + '°C';
+    if (k.avg_return_rh_pct !== null) detail += ', ' + k.avg_return_rh_pct + '% RH';
+    document.getElementById('comfort-detail').textContent = detail || 'No data';
+  } else {
+    document.getElementById('comfort-verdict').textContent = 'NO DATA';
+    document.getElementById('comfort-verdict').className = 'value neutral';
+  }
+
+  document.getElementById('annual-saving').textContent = 'S$' + Number(k.annual_saving_sgd).toLocaleString();
+
+  if (k.saving_statistically_significant !== null) {
+    const el = document.getElementById('sig-verdict');
+    el.textContent = k.saving_statistically_significant ? 'YES ✓' : 'NO';
+    el.className = 'value ' + (k.saving_statistically_significant ? 'pass' : 'fail');
+    document.getElementById('sig-detail').textContent = `p=${k.p_value}`;
+  }
+
+  // Bar chart
+  const maxPower = Math.max(k.peak_power_before_kW, k.peak_power_after_kW);
+  document.getElementById('bar-avg-before').textContent = k.avg_power_before_kW + ' kW';
+  document.getElementById('bar-avg-after').textContent = k.avg_power_after_kW + ' kW';
+  document.getElementById('bar-peak-before').textContent = k.peak_power_before_kW + ' kW';
+  document.getElementById('bar-peak-after').textContent = k.peak_power_after_kW + ' kW';
+  document.getElementById('bar-avg-before-el').style.height = (k.avg_power_before_kW / maxPower * 100) + '%';
+  document.getElementById('bar-avg-after-el').style.height = (k.avg_power_after_kW / maxPower * 100) + '%';
+  document.getElementById('bar-peak-before-el').style.height = (k.peak_power_before_kW / maxPower * 100) + '%';
+  document.getElementById('bar-peak-after-el').style.height = (k.peak_power_after_kW / maxPower * 100) + '%';
+
+  // Metrics table
+  const rows = [
+    ['Avg Power (kW)', k.avg_power_before_kW, k.avg_power_after_kW, '—'],
+    ['Peak Power (kW)', k.peak_power_before_kW, k.peak_power_after_kW, '—'],
+    ['Total Energy (kWh)', k.total_energy_before_kWh, k.total_energy_after_kWh, '—'],
+    ['Airside Efficiency (kW/RT)', k.airside_eff_before_kW_per_RT || 'N/A', k.airside_eff_after_kW_per_RT || 'N/A', '≤' + k.target_airside_kW_per_RT],
+    ['Total System Eff (kW/RT)', '—', k.total_system_eff_after_kW_per_RT || 'N/A', '≤' + k.target_total_kW_per_RT],
+    ['Return Air Temp (°C)', '—', k.avg_return_temp_C || 'N/A', '22–24.5'],
+    ['Return Air RH (%)', '—', k.avg_return_rh_pct || 'N/A', '≤75'],
+  ];
+  document.getElementById('metrics-table').innerHTML = rows.map(r =>
+    `<tr><td>${r[0]}</td><td>${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td></tr>`
+  ).join('');
+
+  // Verdict
+  const vBox = document.getElementById('verdict-box');
+  const vText = document.getElementById('verdict-text');
+  if (k._confidence === 'full' && k.meets_sle_airside) {
+    vBox.className = 'verdict-box verdict-pass';
+    vText.innerHTML = `<strong>Recommendation: PASS.</strong> Airside optimization achieves ${k.airside_eff_after_kW_per_RT} kW/RT (target ≤0.14), saving ${k.saving_pct}% energy with comfort maintained. The building can meet BCA Super Low Energy status on the airside.`;
+  } else if (k._confidence === 'full' && !k.meets_sle_airside) {
+    vBox.className = 'verdict-box verdict-fail';
+    vText.innerHTML = `<strong>Recommendation: DOES NOT MEET TARGET.</strong> Airside efficiency of ${k.airside_eff_after_kW_per_RT} kW/RT exceeds the 0.14 kW/RT target. Further optimization required.`;
+  } else {
+    vBox.className = 'verdict-box verdict-partial';
+    vText.innerHTML = `<strong>Partial analysis.</strong> Energy saving of ${k.saving_pct}% confirmed. However, missing data prevents full SLE verification: ${k._missing.join(', ')}.`;
+  }
+
+  // Missing data notes
+  if (k._notes && Object.keys(k._notes).length > 0) {
+    const notes = Object.entries(k._notes).map(([key, val]) =>
+      `<div class="missing-note">⚠️ ${val}</div>`
+    ).join('');
+    document.getElementById('missing-notes').innerHTML = notes;
+  }
+}
+
+render();
+</script>
+</body>
+</html>
