@@ -1,0 +1,215 @@
+@startuml ACMV_Task2_Architecture
+
+!theme plain
+title **ACMV GenAI Demo — Token-Optimized Pipeline Architecture**\nTask 2: AHU Airside Optimization
+
+skinparam backgroundColor #FFFFFF
+skinparam shadowing false
+skinparam roundCorner 8
+skinparam defaultFontName "Segoe UI"
+skinparam defaultFontSize 11
+skinparam ArrowColor #475569
+skinparam ArrowThickness 1.5
+
+skinparam swimlaneWidth 200
+skinparam ActivityBackgroundColor #FFFFFF
+skinparam ActivityBorderColor #94A3B8
+skinparam ActivityFontColor #1E293B
+skinparam ActivityDiamondBackgroundColor #F8FAFC
+skinparam ActivityDiamondBorderColor #64748B
+
+skinparam partition {
+  BackgroundColor #F8FAFC
+  BorderColor #E2E8F0
+  FontStyle bold
+}
+
+skinparam note {
+  BackgroundColor #FFFBEB
+  BorderColor #FCD34D
+  FontSize 10
+}
+
+|#E0F2FE|  User  |
+|#F1F5F9|  Next.js Server  |
+|#ECFDF5|  Anthropic Container  |
+|#F1F5F9|  Next.js Server  |
+|#E0F2FE|  User  |
+
+|  User  |
+start
+:User uploads **CSV/Excel**\nand types a prompt;
+
+|  Next.js Server  |
+
+partition "ROUTING (server-side, no AI)" {
+  :""task-detect.ts"" reads first row\nof uploaded file (column headers);
+  note right
+    Matches against known signatures:
+    • task1: CHWS_Temperature, Cooling_Power, Valve_Feedback
+    • task2: ahu_power_kW, cooling_load_RT, airside_efficiency_kW_per_RT
+    • task3: (future)
+    Case-insensitive + normalized fallback.
+    Returns taskType or null.
+  end note
+}
+
+if (**kpis.json** already stored\nin PostgreSQL for this\nconversation?) then (**YES — follow-up query**)
+
+  partition "FOLLOW-UP PATH (cheap)" {
+    :Load kpis.json from\n""PipelineResult"" table;
+    :Append kpis.json to\nsystem prompt as context;
+    note right
+      System prompt (cached by Anthropic,
+      5-min TTL, 90% input discount)
+      + kpis.json appended at end
+    end note
+    :Send to Claude Sonnet\nwith user's follow-up question;
+  }
+
+  |  Anthropic Container  |
+  :LLM reads kpis.json from context\nand answers the question directly;
+  note right
+    No code execution.
+    No pipeline re-run.
+    Just reads pre-computed
+    numbers and responds.
+  end note
+
+  |  Next.js Server  |
+  :Save assistant message to DB\nReturn streamed response;
+
+  |  User  |
+  :Receive answer;
+  stop
+
+else (**NO — first analysis**)
+
+  partition "PIPELINE INJECTION" {
+    :""loadPipelineFiles('task2')""\nreads 5 files from disk;
+    note right
+      Files loaded from pipelines/task2/:
+      1. template_task2.py (462 lines, fixed math)
+      2. schema.json (column mapping template)
+      3. view_schema.json (dashboard config template)
+      4. renderer.html (HTML dashboard shell)
+      5. render_view.py (PPTX + HTML renderer)
+    end note
+    :Upload **data file + 5 pipeline files**\nto Anthropic Files API;
+    :Attach all file IDs to\ncode execution container;
+    :Append pipeline instruction note\nto user message content;
+    note right
+      "Follow the Pipeline Execution
+      Protocol in your instructions.
+      Data file: AHU_data.csv"
+    end note
+  }
+
+  partition "SYSTEM PROMPT (cached)" {
+    :Build system prompt with\nPipeline Execution Protocol;
+    note right
+      Includes Steps A–D:
+      A. Fill schema_filled.json
+      B. Run template, read kpis.json
+      C. Fill view_filled.json
+      D. Run render_view.py
+      + error handling rules
+      + "NEVER write your own math"
+    end note
+    :Send to Claude Sonnet via\n""streamText()"" (Vercel AI SDK);
+  }
+
+  |  Anthropic Container  |
+
+  partition "STEP A: Schema Fill (LLM work — small)" {
+    :LLM inspects CSV columns\nwith ""pd.read_csv().columns"";
+    :LLM writes **schema_filled.json**\n(maps real columns to expected slots);
+    note right
+      Example output:
+      {
+        "columns": {
+          "power": {"column": "ahu_power_kW"},
+          "load": {"column": "cooling_load_RT"},
+          "timestamp": {"column": "timestamp"},
+          ...
+        },
+        "period_split": {
+          "method": "column",
+          "column": "period",
+          "before_value": "Before",
+          "after_value": "After"
+        }
+      }
+    end note
+  }
+
+  partition "STEP B: Computation (deterministic — zero AI)" {
+    :LLM runs:\n""python template_task2.py data.csv schema_filled.json"";
+    note right
+      Fixed Python script computes:
+      • Average/peak power (before & after)
+      • Energy saving (kWh and %)
+      • Airside efficiency (kW/RT)
+      • Total system efficiency
+      • Welch's t-test (p-value)
+      • Comfort: return air temp & RH
+      • Financial: annual savings (S$)
+      • BCA SLE verdict (pass/fail)
+      **All formulas hardcoded.**
+      **LLM cannot modify them.**
+    end note
+    :Pipeline outputs:\n• **kpis.json** (all computed metrics)\n• cleaned_data.csv;
+  }
+
+  partition "STEP C: View Fill (LLM work — small)" {
+    :LLM reads kpis.json;
+    :LLM writes **view_filled.json**\n(decides what to display);
+    note right
+      Picks which KPI cards to show,
+      chart data, table rows, and
+      writes a narrative conclusion.
+      Does NOT write any HTML/CSS.
+    end note
+  }
+
+  partition "STEP D: Rendering (deterministic — zero AI)" {
+    :LLM runs:\n""python render_view.py view_filled.json --html --pptx"";
+    note right
+      render_view.py:
+      • Injects view JSON into renderer.html
+      • Builds PPTX slides from view config
+      Output: dashboard.html + presentation.pptx
+      **Fixed template — always consistent layout.**
+    end note
+    :Outputs:\n• **dashboard.html** (light theme)\n• **presentation.pptx**;
+  }
+
+  |  Next.js Server  |
+
+  partition "PERSISTENCE & RESPONSE" {
+    :Extract kpis.json from\nLLM response text;
+    :Store in PostgreSQL\n(""PipelineResult"" table)\nfor future follow-ups;
+    note right
+      Keyed by conversationId.
+      Upsert: same conversation
+      always has latest result.
+      Also stores fileHash for
+      cross-conversation dedup.
+    end note
+    :Stream response to frontend\n(text + file download links);
+  }
+
+  |  User  |
+  :View **interactive HTML dashboard**\nin artifact panel;
+  :Download **PPTX presentation**;
+  note right
+    All future questions in
+    this conversation take
+    the follow-up path above
+    (no re-computation).
+  end note
+  stop
+
+endif
+
+@enduml
