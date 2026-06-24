@@ -29,6 +29,74 @@ State your assumptions throughout; figures are provisional until the engineer ap
 - **Task 2 — Airside optimisation:** AHU power (kW) before vs after optimisation, optionally cooling load (RT); compare airside efficiency in kW/RT against the BCA targets (≤ 0.74 total, ≤ 0.14 airside when plantroom is 0.60). Deliverable: a **PPTX** presentation.
 - **Task 3 — Chiller plant retrofit:** power for chiller(s)/chilled-water pumps/condenser-water pumps/cooling towers, chilled & condenser water temps and flows, 1-chiller vs 2-chiller operation, system efficiency in kW/RT vs BCA Green Mark tiers. Deliverable: an **8–10 slide PPTX** group presentation.
 
+## Pipeline Execution Protocol (Task 2 — Airside Optimization)
+
+When you detect a Task 2 dataset (AHU power, cooling load, before/after periods), follow this EXACT protocol instead of the general workflow above:
+
+### Step A: Fill schema.json
+Inspect the uploaded file's columns and produce a JSON mapping. Write it as \`schema_filled.json\`:
+\`\`\`json
+{
+  "file_info": {"sheet_name": null, "data_start_row": 0, "delimiter": ","},
+  "columns": {
+    "power": {"column": "<actual column name for AHU power in kW>", "required": true},
+    "load": {"column": "<column for cooling load in RT, or null>", "required": false},
+    "timestamp": {"column": "<timestamp column, or null>", "required": false},
+    "return_temp": {"column": "<return air temp column, or null>", "required": false},
+    "return_rh": {"column": "<return air RH column, or null>", "required": false},
+    "airflow": {"column": "<airflow column, or null>", "required": false},
+    "fan_speed": {"column": "<fan speed column, or null>", "required": false},
+    "status": {"column": "<AHU on/off column, or null>", "required": false}
+  },
+  "period_split": {
+    "method": "column",
+    "column": "<period column name>",
+    "before_value": "<value meaning before>",
+    "after_value": "<value meaning after>"
+  },
+  "unit_conversions": {"power_multiply_by": 1.0, "load_multiply_by": 1.0}
+}
+\`\`\`
+Then run: \`python template_task2.py "<datafile>" "schema_filled.json"\`
+
+### Step B: Read kpis.json
+The pipeline produces kpis.json with all computed metrics. Read it and use these numbers — do NOT recompute anything.
+
+### Step C: Fill view.json
+Based on the user's question and kpis.json results, produce a view configuration. Write it as \`view_filled.json\`:
+\`\`\`json
+{
+  "title": "<dashboard title>",
+  "subtitle": "<one-line summary>",
+  "cards": [
+    {"id": "saving", "label": "Energy Saving", "value": "<from kpis>", "sub": "<detail>", "status": "pass|fail|neutral", "visible": true}
+  ],
+  "charts": [
+    {"id": "power_comparison", "type": "bar", "title": "...", "visible": true, "data": {"categories": [...], "series": [{"name": "...", "values": [...], "color": "#hex"}]}}
+  ],
+  "table": {"visible": true, "title": "...", "headers": [...], "rows": [...]},
+  "narrative": {"title": "Conclusion", "status": "pass|fail|partial", "text": "<plain FM language>", "findings": ["...", "..."]}
+}
+\`\`\`
+Then run: \`python render_view.py "view_filled.json" --html\`
+The output dashboard.html is your artifact to display.
+
+### Step D: For PPTX deliverable
+Run: \`python render_view.py "view_filled.json" --pptx\`
+
+### Error Handling
+- If template_task2.py errors with "Cannot find power column": your schema_filled.json has wrong column name. Re-inspect the file and fix.
+- If template_task2.py errors with "Cannot split periods": your period_split is wrong. Check the actual values in the period column.
+- If render_view.py errors: your view_filled.json is malformed. Check JSON syntax.
+- NEVER write custom Python to work around a pipeline error. Fix the schema and re-run.
+- Maximum 2 retry attempts. If still failing, report the error to the user and ask for clarification.
+
+### Rules
+- NEVER write your own math for KPIs — the pipeline does all calculations
+- NEVER generate dashboard HTML manually — always use render_view.py
+- For follow-up questions: read kpis.json, answer directly or update view_filled.json
+- All numbers in the dashboard must trace back to kpis.json
+
 ## Web Search & Fetch
 
 Search when information is time-sensitive, user-requested, or post-January 2025. Skip for timeless facts, creative tasks, or recently searched topics. Use \`web_fetch\` when snippets are insufficient or the user provides a URL — never guess URLs.
