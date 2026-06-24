@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ACMV Analytics Dashboard</title>
+<style>
+:root {
+  --bg: #0f1117;
+  --surface: #1a1d27;
+  --surface-hover: #232733;
+  --border: #2a2e3a;
+  --text: #e2e8f0;
+  --text-muted: #94a3b8;
+  --text-dim: #64748b;
+  --pass: #22c55e;
+  --pass-bg: rgba(34, 197, 94, 0.08);
+  --pass-border: rgba(34, 197, 94, 0.2);
+  --fail: #ef4444;
+  --fail-bg: rgba(239, 68, 68, 0.08);
+  --fail-border: rgba(239, 68, 68, 0.2);
+  --neutral: #3b82f6;
+  --neutral-bg: rgba(59, 130, 246, 0.08);
+  --neutral-border: rgba(59, 130, 246, 0.2);
+  --accent: #8b5cf6;
+  --radius: 12px;
+  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  padding: 24px;
+  min-height: 100vh;
+}
+
+.dashboard { max-width: 1200px; margin: 0 auto; }
+
+/* Header */
+.header { margin-bottom: 32px; }
+.header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #e2e8f0, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header .subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+/* KPI Cards */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: transform 0.15s, border-color 0.15s;
+}
+.kpi-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--text-dim);
+}
+.kpi-card .label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+.kpi-card .value {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.kpi-card .sub {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+.kpi-card.pass { border-left: 3px solid var(--pass); }
+.kpi-card.pass .value { color: var(--pass); }
+.kpi-card.fail { border-left: 3px solid var(--fail); }
+.kpi-card.fail .value { color: var(--fail); }
+.kpi-card.neutral { border-left: 3px solid var(--neutral); }
+.kpi-card.neutral .value { color: var(--text); }
+
+/* Charts Section */
+.charts-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.chart-card h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+.chart-area {
+  width: 100%;
+  height: 200px;
+  position: relative;
+}
+
+/* Bar Chart */
+.bar-chart {
+  display: flex;
+  align-items: flex-end;
+  gap: 16px;
+  height: 180px;
+  padding: 0 20px;
+}
+.bar-group {
+  flex: 1;
+  display: flex;
+  gap: 4px;
+  align-items: flex-end;
+  height: 100%;
+}
+.bar-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+  justify-content: flex-end;
+}
+.bar {
+  width: 100%;
+  max-width: 40px;
+  border-radius: 6px 6px 0 0;
+  min-height: 4px;
+  transition: height 0.5s ease;
+  position: relative;
+}
+.bar-val {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+  white-space: nowrap;
+}
+.bar-cat {
+  font-size: 10px;
+  color: var(--text-dim);
+  margin-top: 8px;
+  text-align: center;
+}
+
+/* Line Chart (SVG) */
+.line-chart svg {
+  width: 100%;
+  height: 180px;
+}
+.line-chart path {
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Legend */
+.legend {
+  display: flex;
+  gap: 16px;
+  margin-top: 12px;
+  justify-content: center;
+}
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+/* Table */
+.table-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
+.table-section h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--text-muted);
+}
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+th {
+  text-align: left;
+  padding: 10px 16px;
+  font-weight: 600;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+td {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--surface-hover); }
+
+/* Narrative / Verdict */
+.narrative {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 24px;
+}
+.narrative h3 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  color: var(--text-muted);
+}
+.narrative .verdict-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.verdict-pass { background: var(--pass-bg); color: var(--pass); border: 1px solid var(--pass-border); }
+.verdict-fail { background: var(--fail-bg); color: var(--fail); border: 1px solid var(--fail-border); }
+.verdict-partial { background: var(--neutral-bg); color: var(--neutral); border: 1px solid var(--neutral-border); }
+.narrative .text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+.narrative .findings {
+  margin-top: 12px;
+  list-style: none;
+}
+.narrative .findings li {
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+}
+.narrative .findings li:last-child { border-bottom: none; }
+.narrative .findings li::before {
+  content: '→ ';
+  color: var(--accent);
+}
+
+/* Hidden cards */
+.hidden { display: none; }
+</style>
+</head>
+<body>
+<div class="dashboard" id="app"></div>
+
+<script>
+// VIEW JSON — LLM fills this, renderer displays it
+const VIEW = __VIEW_JSON__;
+
+function render(view) {
+  const app = document.getElementById('app');
+  let html = '';
+
+  // Header
+  html += `<div class="header">
+    <h1>${esc(view.title)}</h1>
+    ${view.subtitle ? `<p class="subtitle">${esc(view.subtitle)}</p>` : ''}
+  </div>`;
+
+  // KPI Cards
+  const visibleCards = (view.cards || []).filter(c => c.visible !== false);
+  if (visibleCards.length > 0) {
+    html += '<div class="kpi-grid">';
+    for (const card of visibleCards) {
+      html += `<div class="kpi-card ${card.status || 'neutral'}">
+        <div class="label">${esc(card.label)}</div>
+        <div class="value">${esc(card.value)}</div>
+        ${card.sub ? `<div class="sub">${esc(card.sub)}</div>` : ''}
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Charts
+  const visibleCharts = (view.charts || []).filter(c => c.visible !== false);
+  if (visibleCharts.length > 0) {
+    html += '<div class="charts-grid">';
+    for (const chart of visibleCharts) {
+      html += `<div class="chart-card">
+        <h3>${esc(chart.title)}</h3>
+        <div class="chart-area" id="chart-${chart.id}"></div>
+        ${renderLegend(chart)}
+      </div>`;
+    }
+    html += '</div>';
+  }
+
+  // Table
+  if (view.table && view.table.visible !== false && view.table.rows && view.table.rows.length > 0) {
+    html += `<div class="table-section">
+      <h3>${esc(view.table.title || 'Details')}</h3>
+      <table>
+        <thead><tr>${view.table.headers.map(h => `<th>${esc(h)}</th>`).join('')}</tr></thead>
+        <tbody>${view.table.rows.map(row =>
+          `<tr>${row.map(cell => `<td>${esc(String(cell ?? 'N/A'))}</td>`).join('')}</tr>`
+        ).join('')}</tbody>
+      </table>
+    </div>`;
+  }
+
+  // Narrative
+  if (view.narrative && view.narrative.text) {
+    const n = view.narrative;
+    html += `<div class="narrative">
+      <h3>${esc(n.title || 'Summary')}</h3>
+      <span class="verdict-badge verdict-${n.status || 'partial'}">${badgeText(n.status)}</span>
+      <p class="text">${esc(n.text)}</p>
+      ${n.findings && n.findings.length > 0 ? `<ul class="findings">${n.findings.map(f => `<li>${esc(f)}</li>`).join('')}</ul>` : ''}
+    </div>`;
+  }
+
+  app.innerHTML = html;
+
+  // Render charts after DOM is ready
+  for (const chart of visibleCharts) {
+    if (chart.type === 'bar') renderBarChart(chart);
+    else if (chart.type === 'line') renderLineChart(chart);
+  }
+}
+
+function renderBarChart(chart) {
+  const el = document.getElementById('chart-' + chart.id);
+  if (!el || !chart.data) return;
+
+  const { categories, series } = chart.data;
+  const allValues = series.flatMap(s => s.values);
+  const maxVal = Math.max(...allValues, 0.01);
+
+  let html = '<div class="bar-chart">';
+  for (let i = 0; i < categories.length; i++) {
+    html += '<div class="bar-group">';
+    for (const s of series) {
+      const val = s.values[i] ?? 0;
+      const height = (val / maxVal) * 100;
+      html += `<div class="bar-col">
+        <div class="bar-val">${val}</div>
+        <div class="bar" style="height:${height}%; background:${s.color}"></div>
+      </div>`;
+    }
+    html += `<div class="bar-cat">${esc(categories[i])}</div></div>`;
+  }
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function renderLineChart(chart) {
+  const el = document.getElementById('chart-' + chart.id);
+  if (!el || !chart.data) return;
+
+  const { series } = chart.data;
+  const allValues = series.flatMap(s => s.values);
+  if (allValues.length === 0) { el.innerHTML = '<p style="color:var(--text-dim)">No time-series data</p>'; return; }
+
+  const maxVal = Math.max(...allValues);
+  const minVal = Math.min(...allValues);
+  const range = maxVal - minVal || 1;
+  const width = 500;
+  const height = 160;
+  const padding = 20;
+
+  let svg = `<svg viewBox="0 0 ${width} ${height}" class="line-chart" preserveAspectRatio="none">`;
+
+  for (const s of series) {
+    if (s.values.length === 0) continue;
+    const points = s.values.map((v, i) => {
+      const x = padding + (i / (s.values.length - 1)) * (width - 2 * padding);
+      const y = height - padding - ((v - minVal) / range) * (height - 2 * padding);
+      return `${x},${y}`;
+    });
+    svg += `<path d="M${points.join(' L')}" stroke="${s.color}" />`;
+  }
+
+  svg += '</svg>';
+  el.innerHTML = `<div class="line-chart">${svg}</div>`;
+}
+
+function renderLegend(chart) {
+  if (!chart.data || !chart.data.series) return '';
+  return '<div class="legend">' + chart.data.series.map(s =>
+    `<div class="legend-item"><div class="legend-dot" style="background:${s.color}"></div>${esc(s.name)}</div>`
+  ).join('') + '</div>';
+}
+
+function badgeText(status) {
+  if (status === 'pass') return 'PASS ✓';
+  if (status === 'fail') return 'DOES NOT MEET TARGET';
+  return 'PARTIAL ANALYSIS';
+}
+
+function esc(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+render(VIEW);
+</script>
+</body>
+</html>

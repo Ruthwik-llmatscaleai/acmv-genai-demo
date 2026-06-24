@@ -1,0 +1,125 @@
+{
+  "$comment": "LLM fills this to control what the dashboard/PPTX/PDF shows. Template renders it.",
+
+  "title": "AHU Airside Optimization — BCA SLE Analysis",
+  "subtitle": "",
+
+  "cards": [
+    {
+      "id": "saving",
+      "label": "Energy Saving",
+      "value": "",
+      "sub": "",
+      "status": "pass|fail|neutral",
+      "visible": true
+    },
+    {
+      "id": "efficiency",
+      "label": "Airside Efficiency",
+      "value": "",
+      "sub": "Target: ≤0.14 kW/RT",
+      "status": "pass|fail|neutral",
+      "visible": true
+    },
+    {
+      "id": "sle",
+      "label": "Meets BCA SLE",
+      "value": "",
+      "sub": "",
+      "status": "pass|fail|neutral",
+      "visible": true
+    },
+    {
+      "id": "comfort",
+      "label": "Comfort",
+      "value": "",
+      "sub": "",
+      "status": "pass|fail|neutral",
+      "visible": true
+    },
+    {
+      "id": "financial",
+      "label": "Annual Saving",
+      "value": "",
+      "sub": "",
+      "status": "neutral",
+      "visible": true
+    },
+    {
+      "id": "significance",
+      "label": "Statistical Significance",
+      "value": "",
+      "sub": "",
+      "status": "pass|fail|neutral",
+      "visible": true
+    }
+  ],
+
+  "charts": [
+    {
+      "id": "power_comparison",
+      "type": "bar",
+      "title": "AHU Power Comparison",
+      "visible": true,
+      "data": {
+        "categories": ["Avg Power", "Peak Power"],
+        "series": [
+          {"name": "Before", "values": [], "color": "#ef4444"},
+          {"name": "After", "values": [], "color": "#22c55e"}
+        ]
+      }
+    },
+    {
+      "id": "efficiency_comparison",
+      "type": "bar",
+      "title": "Airside Efficiency vs Target",
+      "visible": true,
+      "data": {
+        "categories": ["Before", "After", "Target"],
+        "series": [
+          {"name": "kW/RT", "values": [], "color": "#3b82f6"}
+        ]
+      }
+    },
+    {
+      "id": "power_timeseries",
+      "type": "line",
+      "title": "Power Over Time",
+      "visible": true,
+      "data": {
+        "timestamps": [],
+        "series": [
+          {"name": "Before", "values": [], "color": "#ef4444"},
+          {"name": "After", "values": [], "color": "#22c55e"}
+        ]
+      }
+    }
+  ],
+
+  "table": {
+    "visible": true,
+    "title": "Detailed Metrics",
+    "headers": ["Metric", "Before", "After", "Target"],
+    "rows": []
+  },
+
+  "narrative": {
+    "title": "Conclusion",
+    "status": "pass|fail|partial",
+    "text": "",
+    "findings": []
+  },
+
+  "slides": [
+    {
+      "type": "title",
+      "title": "",
+      "subtitle": ""
+    },
+    {
+      "type": "content",
+      "title": "",
+      "bullets": []
+    }
+  ]
+}
