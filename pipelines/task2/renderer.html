@@ -6,25 +6,25 @@
 <title>ACMV Analytics Dashboard</title>
 <style>
 :root {
-  --bg: #0f1117;
-  --surface: #1a1d27;
-  --surface-hover: #232733;
-  --border: #2a2e3a;
-  --text: #e2e8f0;
-  --text-muted: #94a3b8;
-  --text-dim: #64748b;
-  --pass: #22c55e;
-  --pass-bg: rgba(34, 197, 94, 0.08);
-  --pass-border: rgba(34, 197, 94, 0.2);
-  --fail: #ef4444;
-  --fail-bg: rgba(239, 68, 68, 0.08);
-  --fail-border: rgba(239, 68, 68, 0.2);
-  --neutral: #3b82f6;
-  --neutral-bg: rgba(59, 130, 246, 0.08);
-  --neutral-border: rgba(59, 130, 246, 0.2);
-  --accent: #8b5cf6;
+  --bg: #f8fafc;
+  --surface: #ffffff;
+  --surface-hover: #f1f5f9;
+  --border: #e2e8f0;
+  --text: #1e293b;
+  --text-muted: #475569;
+  --text-dim: #94a3b8;
+  --pass: #16a34a;
+  --pass-bg: rgba(22, 163, 74, 0.08);
+  --pass-border: rgba(22, 163, 74, 0.2);
+  --fail: #dc2626;
+  --fail-bg: rgba(220, 38, 38, 0.08);
+  --fail-border: rgba(220, 38, 38, 0.2);
+  --neutral: #2563eb;
+  --neutral-bg: rgba(37, 99, 235, 0.08);
+  --neutral-border: rgba(37, 99, 235, 0.2);
+  --accent: #7c3aed;
   --radius: 12px;
-  --shadow: 0 4px 24px rgba(0,0,0,0.3);
+  --shadow: 0 4px 24px rgba(0,0,0,0.06);
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -95,7 +95,7 @@ body {
 .kpi-card.fail { border-left: 3px solid var(--fail); }
 .kpi-card.fail .value { color: var(--fail); }
 .kpi-card.neutral { border-left: 3px solid var(--neutral); }
-.kpi-card.neutral .value { color: var(--text); }
+.kpi-card.neutral .value { color: var(--neutral); }
 
 /* Charts Section */
 .charts-grid {
