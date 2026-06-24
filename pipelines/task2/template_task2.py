@@ -152,24 +152,9 @@ def split_periods(df, resolved, schema):
         after = df[(df[ts_col] >= after_start) & (df[ts_col] <= after_end)]
 
     else:
-        # Fallback: try to auto-detect from column values
-        # Look for any column with before/after-like values
-        for col in df.columns:
-            unique = df[col].dropna().unique()
-            if len(unique) == 2:
-                str_vals = [str(v).lower() for v in unique]
-                if any('before' in s or 'baseline' in s or 'bms' in s for s in str_vals):
-                    before_val = [v for v in unique if 'before' in str(v).lower() or 'baseline' in str(v).lower() or 'bms' in str(v).lower()][0]
-                    after_val = [v for v in unique if v != before_val][0]
-                    before = df[df[col] == before_val]
-                    after = df[df[col] == after_val]
-                    return before, after, {"method": "auto_detected", "column": col}
-
-        # Last resort: split in half by index
-        mid = len(df) // 2
-        before = df.iloc[:mid]
-        after = df.iloc[mid:]
-        return before, after, {"method": "index_split", "note": "No period column found, split by row index"}
+        print("[template_task2] ERROR: period_split method not specified in schema.")
+        print("  LLM must fill schema.json with method: 'column' or 'date_range'")
+        return pd.DataFrame(), pd.DataFrame(), {"method": "none", "error": "Not specified in schema"}
 
     return before, after, {"method": method}
 
@@ -374,78 +359,20 @@ def compute_series(before, after, resolved):
 # ============================================================
 # MAIN: Load schema → Execute template → Output kpis.json
 # ============================================================
-def auto_fill_schema(df):
-    """Heuristic auto-fill when no schema.json provided by LLM."""
-    schema = {
-        "file_info": {"data_start_row": 0},
-        "columns": {},
-        "period_split": {},
-        "filters": {},
-        "unit_conversions": {"power_multiply_by": 1.0, "load_multiply_by": 1.0, "temp_offset": 0.0}
-    }
-
-    # Auto-detect columns by common naming patterns
-    col_lower_map = {col.lower().replace(' ', '_').replace('(', '').replace(')', ''): col for col in df.columns}
-
-    power_patterns = ['ahu_power_kw', 'ahu_power', 'fan_power_kw', 'fan_power', 'power_kw', 'motor_power']
-    load_patterns = ['cooling_load_rt', 'cooling_load', 'load_rt', 'chilled_load']
-    temp_patterns = ['return_air_temp_c', 'return_air_temp', 'rat', 'return_temp', 'room_temp']
-    rh_patterns = ['return_air_rh_pct', 'return_air_rh', 'return_rh', 'rah', 'room_rh']
-    ts_patterns = ['timestamp', 'datetime', 'date_time', 'time', 'date']
-    status_patterns = ['ahu_status', 'status', 'on_off', 'running']
-    period_patterns = ['period', 'scenario', 'phase', 'mode', 'condition']
-    airflow_patterns = ['airflow_cmh', 'airflow', 'air_flow', 'supply_air_flow']
-    fan_patterns = ['fan_speed_pct', 'fan_speed', 'vsd_speed', 'vsd_feedback']
-
-    def find_match(patterns):
-        for p in patterns:
-            if p in col_lower_map:
-                return col_lower_map[p]
-        return None
-
-    schema["columns"] = {
-        "power": {"column": find_match(power_patterns), "required": True},
-        "load": {"column": find_match(load_patterns), "required": False},
-        "timestamp": {"column": find_match(ts_patterns), "required": False},
-        "return_temp": {"column": find_match(temp_patterns), "required": False},
-        "return_rh": {"column": find_match(rh_patterns), "required": False},
-        "airflow": {"column": find_match(airflow_patterns), "required": False},
-        "fan_speed": {"column": find_match(fan_patterns), "required": False},
-        "status": {"column": find_match(status_patterns), "required": False},
-    }
-
-    # Auto-detect period split
-    period_col = find_match(period_patterns)
-    if period_col:
-        unique = df[period_col].dropna().unique()
-        before_val = next((v for v in unique if 'before' in str(v).lower() or 'baseline' in str(v).lower() or 'bms' in str(v).lower()), None)
-        after_val = next((v for v in unique if 'after' in str(v).lower() or 'optim' in str(v).lower() or 'mpc' in str(v).lower()), None)
-        if before_val and after_val:
-            schema["period_split"] = {"method": "column", "column": period_col, "before_value": str(before_val), "after_value": str(after_val)}
-
-    return schema
-
-
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python template_task2.py <dataset> [schema.json]")
+    if len(sys.argv) < 3:
+        print("Usage: python template_task2.py <dataset> <schema.json>")
+        print("\nThe LLM must provide a filled schema.json. No auto-detection.")
         sys.exit(1)
 
     filepath = sys.argv[1]
-    schema_path = sys.argv[2] if len(sys.argv) > 2 else None
+    schema_path = sys.argv[2]
 
     print(f"[template_task2] Loading: {filepath}")
 
-    # Load schema (LLM-provided or auto-detect)
-    if schema_path:
-        with open(schema_path) as f:
-            schema = json.load(f)
-        print(f"[template_task2] Schema: {schema_path} (LLM-provided)")
-    else:
-        # Auto-detect mode
-        df_peek = pd.read_csv(filepath, nrows=5) if filepath.endswith('.csv') else pd.read_excel(filepath, nrows=5)
-        schema = auto_fill_schema(df_peek)
-        print(f"[template_task2] Schema: auto-detected")
+    with open(schema_path) as f:
+        schema = json.load(f)
+    print(f"[template_task2] Schema: {schema_path}")
 
     # STEP 1: Load
     df = load_data(filepath, schema)
