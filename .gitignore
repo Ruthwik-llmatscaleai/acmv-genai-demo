@@ -71,3 +71,12 @@ pipelines/*/kpis.json
 pipelines/*/cleaned_data.csv
 pipelines/*/dashboard.html
 pipelines/*/*.pptx
+pipelines/*/test_data/
+
+# Tests (local only)
+tests/
+vitest.config.ts
+
+# Claude docs (local only)
+CLAUDE.md
+**/CLAUDE.md
