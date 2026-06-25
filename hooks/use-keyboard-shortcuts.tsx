@@ -53,6 +53,7 @@ export function useKeyboardShortcuts({
         target.isContentEditable
 
       for (const shortcut of shortcutsRef.current) {
+        if (!event.key) continue
         const keyMatches = event.key.toLowerCase() === shortcut.key.toLowerCase()
         const ctrlMatches = shortcut.ctrlKey ? event.ctrlKey || event.metaKey : !event.ctrlKey && !event.metaKey
         const shiftMatches = shortcut.shiftKey ? event.shiftKey : !event.shiftKey
